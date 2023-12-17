@@ -1,0 +1,372 @@
+#include <iostream>
+#include <cstdlib>
+#include <cmath>
+#include <set>
+#include <vector>
+#include <ctime>
+#include <stack>
+
+using namespace std;
+
+const int SIZE = 3;
+
+struct board
+{
+  int ar[SIZE][SIZE];
+  int g;//the number of tiles in the wrong position
+  int h;//the number of moves it will take to get to the goal position
+  int f;//g+h
+};
+
+void printBoard(int ar[][SIZE]);
+void generateRandomState(int ar[][SIZE]);
+int numWrong(int ar[][SIZE]);
+int numOfMoves(int ar[][SIZE]);
+void generateAll(board current);
+vector<int> findBlank(int ar[][SIZE]);
+void removeFromFrontier(board x);
+void swap(board& x, int x1, int y1, int x2, int y2);
+void generate(board next);
+bool inFrontier(board next, int& x);
+bool checkBeenThere(board x);
+board bestOfFrontier();
+vector<int> findBlank(int ar[][SIZE]);
+void tracePath();
+
+vector<board> frontier;
+vector<board> beenThere;
+stack<board> path;
+
+
+int main()
+{
+  srand(time(NULL));
+  
+  board current;
+  generateRandomState(current.ar);
+  printBoard(current.ar);
+  current.g = numWrong(current.ar);
+  current.h = numOfMoves(current.ar);
+  current.f = current.g + current.h;
+  
+  //this was for the assignment test run
+  int values[3][3] = {{0, 1, 3}, {4, 8, 6}, {7, 2, 5}};
+
+  for (int i = 0; i < SIZE; ++i)
+    {
+      for (int j = 0; j < SIZE; ++j)
+	{
+	  current.ar[i][j] = values[i][j];
+	}
+    }
+  
+  frontier.push_back(current);
+  
+  char ans;
+  int count = 0;
+  while(true)
+    {
+      count++;
+      path.push(current);
+      removeFromFrontier(current);
+      beenThere.push_back(current);
+      generateAll(current);
+
+      
+      current = bestOfFrontier();
+      
+      cout << "The count is " << count << endl;
+      cout << "The f of this board is " << current.f << endl;
+      printBoard(current.ar);
+      cout << "Type any key to continue" << endl;
+      
+      
+    }
+  return 0;
+}
+
+void swap(board &x, int x1, int y1, int x2, int y2)
+{
+  int temp = x.ar[x1][y1];
+  x.ar[x1][y1] = x.ar[x2][y2];
+  x.ar[x2][y2] = temp;
+}
+
+
+bool isEqual(const board& b1, const board& b2)
+{
+  for (int i = 0; i < SIZE; i++)
+    {
+      for (int j = 0; j < SIZE; j++)
+	{
+	  if (b1.ar[i][j] != b2.ar[i][j])
+	    {
+	      return false;
+	    }
+	}
+    }
+  return true;
+}
+
+board bestOfFrontier()
+{
+  board best = frontier[0];
+  for (int i = 0; i < frontier.size(); i++)
+    {
+      if (frontier[i].f < best.f)
+	{
+	  best = frontier[i];
+	}
+    }
+  return best;
+}
+
+bool inFrontier(board next, int& x)
+{
+  for (int i = 0; i < frontier.size(); i++)
+    {
+      if (isEqual(frontier[i], next))
+	{
+	  
+	  x = frontier[i].f;
+	  return true;
+	}
+    }
+  return false;
+}
+
+void tracePath()
+{
+  while (!path.empty())
+    {
+      cout << "came from" << endl;
+      printBoard(path.top().ar);
+      path.pop();
+    }
+}
+
+bool checkBeenThere(board x)
+{
+  for (int i = 0; i < beenThere.size(); i++)
+    {
+      if (isEqual(beenThere[i], x))
+	{
+	  return true;
+	}
+    }
+  return false;
+}
+
+void printBoard(int ar[][SIZE])
+{
+  for (int k = 0; k < 20; k++)
+    cout << "=";
+  cout << endl;
+  for (int i = 0; i < SIZE; i++)
+    {
+      for (int j = 0; j < SIZE; j++)
+	{
+	  if (ar[i][j] == 0)
+	    {
+	      cout << "  ";
+	    }
+	  else
+	    {
+	      cout << ar[i][j] << " ";
+	    }
+	}
+      cout << endl;
+      
+    }
+}
+//keep going until its not in the set
+void generateRandomState(int ar[][SIZE])
+{
+  set<int> dupes;
+  int blank = rand() % 8;
+  int count = 0;
+  for (int i = 0; i < SIZE; i++)
+    {
+      for (int j = 0; j < SIZE; j++)
+	{
+	  if(blank == count)
+	    {
+	      ar[i][j] = 0;
+	    }
+	  else
+	    {
+	      
+	      int num = rand() % 8 + 1;
+	      if (dupes.find(num) == dupes.end())
+		{
+		  ar[i][j] = num;
+		  dupes.insert(num);
+		}
+	      else
+		{
+		  while (dupes.find(num) != dupes.end())
+		    {
+		      num = rand() % 8 + 1;
+		    }
+		  ar[i][j] = num;
+		  dupes.insert(num);
+		}
+	    }
+	  count++;
+	}
+    }
+}
+
+int numWrong(int ar[][SIZE])
+{
+  int count = 0;
+  for (int i = 0; i < SIZE; i++)
+    {
+      for (int j = 0; j < SIZE; j++)
+	{
+	  if (ar[i][j] != (i*SIZE) + j + 1)
+	    {
+	      count++;
+	    }
+	}
+    }
+  return count - 1;
+}
+
+int numOfMoves(int ar[][SIZE])
+{
+  int moves = 0;
+  for (int i = 0; i < SIZE; i++)
+    {
+      for (int j = 0; j < SIZE; j++)
+	{
+	  int num = ar[i][j];
+	  int row, col;
+
+
+	  if (num != 0)
+	    {
+	      row = (num - 1) / SIZE;
+	      col = (num - 1) % SIZE;
+	    }
+	  else
+	    {
+
+	      continue;
+	    }
+
+	  moves += abs(i - row) + abs(j - col);
+	}
+    }
+  return moves;
+}
+
+
+void removeFromFrontier(board x)
+{
+  vector<board> newFrontier;
+  for (int k = 0; k < frontier.size(); k++)
+    {
+      if (!isEqual(frontier[k], x))
+	{
+	  newFrontier.push_back(frontier[k]);
+	}
+    }
+  frontier = newFrontier;
+}
+
+vector<int> findBlank(int ar[][SIZE])
+{
+  vector<int> xy(2);
+  int i, j;
+  bool found = false;
+  for (i = 0; i < SIZE && !found; i++)
+    {
+      for (j = 0; j < SIZE && !found; j++)
+	{
+	  if (ar[i][j] == 0)
+	    {
+	      found = true;
+	    }
+	}
+    }
+  if (found)
+    {
+      --i;
+      --j;
+      xy[0] = i;
+      xy[1] = j;
+    }
+  
+  return xy;
+}
+void generate(board next)
+{
+  int score = next.f;
+  if (next.h == 0)
+    {
+      cout << "\ngoal reached" << endl;
+      tracePath();
+      exit(0);
+    }
+  
+  if (checkBeenThere(next))
+    {
+      cout << " we already been there already" << endl;
+      return;
+    }
+  
+  //update variables
+  next.g = numWrong(next.ar);
+  next.h = numOfMoves(next.ar);
+  next.f = next.g + next.h;
+  
+  
+  int existingScore;
+  
+  if (inFrontier(next, existingScore))
+    {
+      cout << "Already in frontier" << endl;
+      if (existingScore < next.f)
+        {
+	  
+        }
+      else
+        {
+	  
+	  frontier.push_back(next);
+        }
+    }
+  else
+    {
+      // Add the next state to the frontier
+      frontier.push_back(next);
+    }
+}
+
+
+
+void generateAll(board current)
+{
+  vector<int> blankXY = findBlank(current.ar);
+  
+
+  // define possible moves (top, bottom, left, right)
+  int moves[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+
+  for (int i = 0; i < 4; ++i)
+    {
+      int newRow = blankXY[0] + moves[i][0];
+      int newCol = blankXY[1] + moves[i][1];
+
+      // check if the new position is within bounds
+      if (newRow >= 0 && newRow < SIZE && newCol >= 0 && newCol < SIZE)
+        {
+	  board next = current;
+	  swap(next, blankXY[0], blankXY[1], newRow, newCol);
+	  generate(next);
+        }
+    }
+}
+
+
